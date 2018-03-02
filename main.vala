@@ -1,56 +1,103 @@
 
 namespace Qwant {
+
     public class Qwant {
 
         protected int results_count = 10;
-        
-        public Qwant () {
-        }
+
+        protected Array<Result> results;
+
+
 
         public void searchWeb (string query) {
-            uint8[] message;
-            string etags_out;
 
-            string url = "http://api.qwant.com/search/web?q=%s&count=%u".printf(query, this.results_count);
+            string locale = "de_de";
+            string uri = "http://api.qwant.com/search/web?q=%s&count=%u&locale=%s".printf (
+                Soup.URI.encode (query, null),
+                this.results_count,
+                locale
+            );
+            stdout.printf ("%s\n", uri);
+
+            /* uint8[] buf; */
+            /* File file = File.new_for_commandline_arg (uri); */
+            /* file.load_contents (null, out buf, null); */
+            /* stdout.printf ("%s\n", (string)buf); */
+
+            var session = new Soup.Session ();
+            var message = new Soup.Message ("GET", uri);
+            session.send_message (message);
+
+            /* message.response_headers.foreach ((name, val) => { */
+            /*     stdout.printf ("%s = %s\n", name, val); */
+            /* }); */
+
+            stdout.printf ("%s\n", (string)message.response_body.flatten ().data);
+            return;
 
             try {
-                File file = File.new_for_commandline_arg (url);
-                file.load_contents (null, out message, out etags_out);
-
-                stdout.printf ("%s\n", (string)message);
-
                 var parser = new Json.Parser ();
-                parser.load_from_data ((string)message);
+                parser.load_from_data ((string)message.response_body.flatten ().data, -1);
 
-                var root_object = parser.get_root ().get_object ();
+                var root = parser.get_root ();
+                if (root == null) {
+                    stdout.printf ("Failed, no root!\n");
+                    return;
+                }
+                var root_object = root.get_object ();
+
+                var status = root_object.get_string_member ("status");
+                if (status != "success") {
+                    stdout.printf ("Failed. Status: %s, Code: %d", status, (int)root_object.get_int_member ("error"));
+                    return;
+                }
+
                 var data = root_object.get_object_member ("data");
-                var results = data.get_object_member ("result");
-                var items = results.get_array_member ("items");
-                var total = results.get_int_member ("total");
+                var res = data.get_object_member ("result");
+                var items = res.get_array_member ("items");
+                var total = res.get_int_member ("total");
                 var count = items.get_length ();
 
                 stdout.printf ("%u of %u results\n\n", (uint)count, (uint)total);
 
-                string[] urls;
                 foreach (var item in items.get_elements ()) {
-                    var result = item.get_object ();
-                    stdout.printf ("[%u]:\t%s\n\t%s\n\t%s\n\n", 
-                        (uint)result.get_int_member ("position"),
-                        result.get_string_member ("title"),
-                        result.get_string_member ("desc"),
-                        result.get_string_member ("url")
+                    var r = item.get_object ();
+                    var result = new Result(
+                        r.get_string_member ("title"),
+                        r.get_string_member ("desc"),
+                        r.get_string_member ("source"),
+                        r.get_string_member ("url"),
+                        (uint)r.get_int_member ("position")
                     );
-                    urls.push (result.get_string_member ("url"));
+                    this.results.append_val (result);
+                }
+
+                for (int i = 0; i < results.length; i++) {
+                    results.index(i).print ();
                 }
 
                 int a = stdin.getc ();
-                stdout.printf ("\n\nYou typed %c (%d)\n\n", a, a);
+                string number = "%c".printf(a);
+                int index = int.parse (number);
 
-
+                Result result;
+                if ((result = this.get_result_by_position (index)) != null) {
+                    result.open ();
+                }
             }
             catch (Error e) {
                 stderr.printf ("Error: %s\n", e.message);
             }
+        }
+
+        public Result? get_result_by_position (uint position) {
+            for (int i = 0; i < results.length; i++) {
+                Result result = results.index(i);
+                if (result.position == position) {
+                    return result;
+                }
+            }
+            return null;
         }
 
         public static int main (string[] args) {
