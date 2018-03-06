@@ -8,6 +8,9 @@ namespace Qwant {
         protected Array<Result> results;
 
 
+        public Qwant () {
+            this.results = new Array<Result> ();
+        }
 
         public void searchWeb (string query) {
 
@@ -19,25 +22,25 @@ namespace Qwant {
             );
             stdout.printf ("%s\n", uri);
 
-            /* uint8[] buf; */
-            /* File file = File.new_for_commandline_arg (uri); */
-            /* file.load_contents (null, out buf, null); */
-            /* stdout.printf ("%s\n", (string)buf); */
+            string body;
+            uint8[] buf;
+            File file = File.new_for_commandline_arg (uri);
+            file.load_contents (null, out buf, null);
+            body = (string)buf;
 
-            var session = new Soup.Session ();
-            var message = new Soup.Message ("GET", uri);
-            session.send_message (message);
+            /* var session = new Soup.Session (); */
+            /* var message = new Soup.Message ("GET", uri); */
+            /* session.send_message (message); */
+            /* body = (string)message.response_body.flatten ().data; */
 
             /* message.response_headers.foreach ((name, val) => { */
             /*     stdout.printf ("%s = %s\n", name, val); */
             /* }); */
 
-            stdout.printf ("%s\n", (string)message.response_body.flatten ().data);
-            return;
 
             try {
                 var parser = new Json.Parser ();
-                parser.load_from_data ((string)message.response_body.flatten ().data, -1);
+                parser.load_from_data (body, -1);
 
                 var root = parser.get_root ();
                 if (root == null) {
@@ -104,7 +107,7 @@ namespace Qwant {
             var qwant = new Qwant ();
 
             if (args.length != 2) {
-                stderr.printf ("Usage: %s file\n", args[0]);
+                stderr.printf ("Usage: %s query\n", args[0]);
                 return 1;
             }
 
