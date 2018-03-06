@@ -1,4 +1,5 @@
 namespace Qwant {
+
     public class Result {
 
         public string title { get; set; }
@@ -16,6 +17,14 @@ namespace Qwant {
         }
 
         public void print () {
+            
+            if (true) {
+                this.title = this.title.replace ("<b>", "\033[1m");
+                this.title = this.title.replace ("</b>", "\033[0m");
+                this.desc = this.desc.replace ("<b>", "\033[1m");
+                this.desc = this.desc.replace ("</b>", "\033[0m");
+            }
+
             stdout.printf ("[%u]:\t%s\n\t%s\n\t%s\n\n", 
                 (uint)this.position,
                 this.title,
